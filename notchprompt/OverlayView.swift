@@ -177,6 +177,11 @@ struct OverlayView: View {
                             model.adjustSpeed(delta: PrompterModel.speedStep)
                         }
                         .help("Increase speed")
+
+                        OverlayControlButton(symbol: "xmark") {
+                            NSApp.terminate(nil)
+                        }
+                        .help("Quit Notchprompt")
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 6)
