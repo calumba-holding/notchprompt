@@ -14,6 +14,10 @@ private final class OverlayPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+private final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+}
+
 @MainActor
 final class OverlayWindowController {
     private let model: PrompterModel
@@ -27,7 +31,7 @@ final class OverlayWindowController {
     init(model: PrompterModel) {
         self.model = model
 
-        let hosting = NSHostingView(rootView: OverlayView(model: model))
+        let hosting = ClickThroughHostingView(rootView: OverlayView(model: model))
 
         let initialFrame = NSRect(x: 0, y: 0, width: model.overlayWidth, height: model.overlayHeight)
         let panel = OverlayPanel(
