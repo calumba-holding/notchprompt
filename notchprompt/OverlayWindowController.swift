@@ -33,10 +33,11 @@ private final class OverlayPanel: NSPanel {
     }
 
     override func rightMouseDown(with event: NSEvent) {
+        guard let view = contentView else { return }
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: "Paste", action: #selector(paste(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Clear", action: #selector(clearScript(_:)), keyEquivalent: ""))
-        NSMenu.popUpContextMenu(menu, with: event, for: contentView ?? self.contentView!)
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
     }
 }
 
