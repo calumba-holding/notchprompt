@@ -237,61 +237,91 @@ private struct OverlayControlButton: View {
     var isActive: Bool = false
     var repeatWhilePressed: Bool = false
     let action: () -> Void
-    
-    @State private var repeatTask: Task<Void, Never>?
-    @State private var isPressed: Bool = false
-    
+
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white)
-            .frame(width: 22, height: 22)
-            .contentShape(Circle())
-            .background(backgroundFill, in: Circle())
+        // Use SwiftUI Button (not onLongPressGesture) so we benefit from
+        // the macOS 15 click-through fix for non-activating panels (FB13720950).
+        Button {
+            if !repeatWhilePressed { action() }
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 22, height: 22)
+                .contentShape(Circle())
+        }
+        .buttonStyle(
+            OverlayCircleButtonStyle(
+                isActive: isActive,
+                repeatWhilePressed: repeatWhilePressed,
+                repeatAction: action
+            )
+        )
+    }
+}
+
+/// Button style that provides press-highlight and optional repeat-while-held.
+private struct OverlayCircleButtonStyle: ButtonStyle {
+    var isActive: Bool = false
+    var repeatWhilePressed: Bool = false
+    var repeatAction: (() -> Void)?
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                Circle()
+                    .fill(Color.white.opacity(configuration.isPressed || isActive ? 0.18 : 0.10))
+            )
             .overlay(
                 Circle()
                     .stroke(Color.white.opacity(0.16), lineWidth: 1)
             )
-            .onLongPressGesture(minimumDuration: 0, maximumDistance: 24, pressing: handlePressStateChange) {}
-            .onDisappear {
-                stopRepeating()
+            .background {
+                if repeatWhilePressed {
+                    RepeatWhileHeldHelper(
+                        isPressed: configuration.isPressed,
+                        action: repeatAction ?? {}
+                    )
+                }
             }
     }
-    
-    private func handlePressStateChange(_ pressing: Bool) {
-        isPressed = pressing
-        if pressing {
-            action()
-            startRepeatingIfNeeded()
-        } else {
-            stopRepeating()
-        }
+}
+
+/// Zero-size helper that fires an action on press-down and repeats while held.
+private struct RepeatWhileHeldHelper: View {
+    let isPressed: Bool
+    let action: () -> Void
+
+    @State private var repeatTask: Task<Void, Never>?
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onChange(of: isPressed) { _, pressed in
+                if pressed {
+                    action()
+                    startRepeating()
+                } else {
+                    stopRepeating()
+                }
+            }
+            .onDisappear { stopRepeating() }
     }
-    
-    private func startRepeatingIfNeeded() {
-        guard repeatWhilePressed else { return }
+
+    private func startRepeating() {
         stopRepeating()
         repeatTask = Task {
             try? await Task.sleep(nanoseconds: 280_000_000)
             while !Task.isCancelled {
-                await MainActor.run {
-                    action()
-                }
+                await MainActor.run { action() }
                 try? await Task.sleep(nanoseconds: 85_000_000)
             }
         }
     }
-    
+
     private func stopRepeating() {
         repeatTask?.cancel()
         repeatTask = nil
-    }
-
-    private var backgroundFill: Color {
-        if isPressed || isActive {
-            return Color.white.opacity(0.18)
-        }
-        return Color.white.opacity(0.10)
     }
 }
 
@@ -358,6 +388,8 @@ final class ScrollCaptureNSView: NSView {
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func scrollWheel(with event: NSEvent) {
         onScroll?(event)

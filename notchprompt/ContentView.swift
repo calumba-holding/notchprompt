@@ -28,7 +28,7 @@ struct ContentView: View {
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .scrollBounceBehavior(.basedOnSize)
+        .modifier(ScrollBounceBehaviorModifier())
         .frame(minWidth: 620, minHeight: 460)
     }
 
@@ -230,3 +230,13 @@ struct ContentView_Previews: PreviewProvider {
     }
 }
 #endif
+
+private struct ScrollBounceBehaviorModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 15.0, *) {
+            content.scrollBounceBehavior(.basedOnSize)
+        } else {
+            content
+        }
+    }
+}

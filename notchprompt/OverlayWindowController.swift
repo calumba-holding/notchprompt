@@ -13,10 +13,17 @@ private final class OverlayPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    override func mouseDown(with event: NSEvent) {
-        super.mouseDown(with: event)
-        NSApp.activate(ignoringOtherApps: true)
-        makeKey()
+    /// Make panel key BEFORE dispatching mouse events so SwiftUI gesture
+    /// recognizers process them in a key-window context.  `sendEvent` fires
+    /// before any view dispatch, unlike `mouseDown` which fires after.
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            if !isKeyWindow { makeKey() }
+        default:
+            break
+        }
+        super.sendEvent(event)
     }
 
     @objc func paste(_ sender: Any?) {
